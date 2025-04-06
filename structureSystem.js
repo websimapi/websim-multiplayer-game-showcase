@@ -272,10 +272,10 @@ class StructureSystem {
     createStructureHitEffect(x, y) {
         const effect = document.createElement('div');
         effect.className = 'structure-hit-effect';
-        effect.style.left = `${x - 25}px`;
-        effect.style.top = `${y - 25}px`;
-        effect.style.width = '50px';
-        effect.style.height = '50px';
+        effect.style.left = `${x - this.WALL_WIDTH/2}px`;
+        effect.style.top = `${y - this.WALL_HEIGHT/2}px`;
+        effect.style.width = `${this.WALL_WIDTH}px`;
+        effect.style.height = `${this.WALL_HEIGHT}px`;
         document.querySelector('.game-area').appendChild(effect);
         
         // Remove the element after animation completes
@@ -287,10 +287,10 @@ class StructureSystem {
     createStructureDestroyedEffect(x, y) {
         const effect = document.createElement('div');
         effect.className = 'structure-destroyed-effect';
-        effect.style.left = `${x - 30}px`;
-        effect.style.top = `${y - 30}px`;
-        effect.style.width = '60px';
-        effect.style.height = '60px';
+        effect.style.left = `${x - this.WALL_WIDTH/2}px`;
+        effect.style.top = `${y - this.WALL_HEIGHT/2}px`;
+        effect.style.width = `${this.WALL_WIDTH}px`;
+        effect.style.height = `${this.WALL_HEIGHT}px`;
         document.querySelector('.game-area').appendChild(effect);
         
         // Remove the element after animation completes
