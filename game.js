@@ -4,7 +4,6 @@ class Game {
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.players = {}; // Player characters
-        this.shooter = new GameShooter(this); // New shooter class
         this.lastUpdateTime = 0;
         this.keys = {}; // For tracking key presses
         this.mouse = { x: 0, y: 0 }; // For tracking mouse position
@@ -15,6 +14,9 @@ class Game {
         this.DASH_DURATION = 200; // ms
         this.DASH_COOLDOWN = 1000; // ms
         this.MAX_HEALTH = 100;
+
+        // Initialize projectile system
+        this.projectileSystem = new ProjectileSystem(this);
         
         // Set up event listeners
         this.setupListeners();
@@ -32,8 +34,11 @@ class Game {
         this.room.subscribeRoomState(this.handleRoomStateUpdate.bind(this));
         this.room.subscribePresenceUpdateRequests(this.handlePresenceUpdateRequest.bind(this));
         
-        // Set up onmessage handler
-        this.room.onmessage = this.handleMessage.bind(this);
+        // Store original message handler
+        this.originalMessageHandler = this.room.onmessage;
+        
+        // Initialize projectile system
+        this.projectileSystem.initialize();
         
         // Initialize our player
         this.initializePlayer();
@@ -72,10 +77,8 @@ class Game {
     }
 
     handleRoomStateUpdate(roomState) {
-        // Handle the projectiles and other room state changes
-        if (roomState.projectiles) {
-            this.shooter.projectileManager.syncProjectiles(roomState.projectiles);
-        }
+        // We're now handling projectiles in the ProjectileSystem class
+        this.updatePlayersList();
     }
 
     handlePresenceUpdateRequest(request, fromClientId) {
@@ -302,8 +305,8 @@ class Game {
         const myPresence = this.room.presence[this.room.clientId];
         if (!myPresence) return;
         
-        // Use the new shooter class
-        this.shooter.shoot(myPresence.x, myPresence.y, this.mouse.x, this.mouse.y);
+        // Delegate to projectile system
+        this.projectileSystem.shoot(myPresence.x, myPresence.y, this.mouse.x, this.mouse.y);
     }
 
     createDashEffect(x, y) {
@@ -330,33 +333,6 @@ class Game {
         setTimeout(() => {
             effect.remove();
         }, 300);
-    }
-
-    createProjectileEffect(x, y, vx, vy) {
-        // Visual effect only, actual projectile is in room state
-        const effect = document.createElement('div');
-        effect.className = 'projectile';
-        effect.style.left = `${x - 5}px`;
-        effect.style.top = `${y - 5}px`;
-        document.querySelector('.game-area').appendChild(effect);
-        
-        // Animate along trajectory for a short distance
-        const distance = 20;
-        const endX = x + vx * distance;
-        const endY = y + vy * distance;
-        
-        effect.animate([
-            { left: `${x - 5}px`, top: `${y - 5}px` },
-            { left: `${endX - 5}px`, top: `${endY - 5}px` }
-        ], {
-            duration: 100,
-            easing: 'linear'
-        });
-        
-        // Remove the element after animation
-        setTimeout(() => {
-            effect.remove();
-        }, 100);
     }
 
     handlePlayerInput(deltaTime) {
@@ -388,7 +364,7 @@ class Game {
         }
     }
 
-    updatePlayerPositions(deltaTime) {
+    updateGameState(deltaTime) {
         // Update player positions based on velocity
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
             if (presence.x === undefined || presence.y === undefined) return;
@@ -410,6 +386,9 @@ class Game {
                 }
             }
         });
+        
+        // Update projectiles using the ProjectileSystem
+        this.projectileSystem.update(deltaTime);
     }
 
     render() {
@@ -436,8 +415,8 @@ class Game {
             this.ctx.stroke();
         }
         
-        // Draw projectiles using the shooter class
-        this.shooter.render(this.ctx);
+        // Render projectiles using the ProjectileSystem
+        this.projectileSystem.render(this.ctx);
         
         // Draw players
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
@@ -564,8 +543,7 @@ class Game {
         this.handlePlayerInput(deltaTime);
         
         // Update game state
-        this.updatePlayerPositions(deltaTime);
-        this.shooter.update(deltaTime);
+        this.updateGameState(deltaTime);
         
         // Render the game
         this.render();
