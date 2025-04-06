@@ -67,6 +67,13 @@ class StructureSystem {
                 }
             });
             
+            // Check for structures that have been removed from room state
+            Object.keys(this.structures).forEach(id => {
+                if (!currentStructureIds.has(id) || roomState.structures[id] === null) {
+                    delete this.structures[id];
+                }
+            });
+            
             // Update wall counter after handling structure changes
             this.updateWallCounter();
         }
@@ -219,29 +226,31 @@ class StructureSystem {
         
         // If structure is destroyed, remove it immediately
         if (newHealth <= 0) {
-            const currentStructures = { ...(this.game.room.roomState.structures || {}) };
-            currentStructures[structureId] = null;
-            
-            this.game.room.updateRoomState({
-                structures: currentStructures
-            });
-            
-            // Also remove from local structures cache
-            delete this.structures[structureId];
-            
-            // Update wall counter
-            this.updateWallCounter();
-            
-            // Create destruction effect
-            this.createStructureDestroyedEffect(structure.x, structure.y);
-            
-            // Send destroyed event for sound
-            this.game.room.send({
-                type: 'structureDestroyed',
-                x: structure.x,
-                y: structure.y,
-                structureType: structure.type
-            });
+            setTimeout(() => {
+                const currentStructures = { ...(this.game.room.roomState.structures || {}) };
+                currentStructures[structureId] = null;
+                
+                this.game.room.updateRoomState({
+                    structures: currentStructures
+                });
+                
+                // Also remove from local structures cache
+                delete this.structures[structureId];
+                
+                // Update wall counter
+                this.updateWallCounter();
+                
+                // Create destruction effect
+                this.createStructureDestroyedEffect(structure.x, structure.y);
+                
+                // Send destroyed event for sound
+                this.game.room.send({
+                    type: 'structureDestroyed',
+                    x: structure.x,
+                    y: structure.y,
+                    structureType: structure.type
+                });
+            }, 50); // Small delay to ensure synchronization
         }
     }
     
@@ -263,10 +272,10 @@ class StructureSystem {
     createStructureHitEffect(x, y) {
         const effect = document.createElement('div');
         effect.className = 'structure-hit-effect';
-        effect.style.left = `${x - this.WALL_WIDTH/2}px`;
-        effect.style.top = `${y - this.WALL_HEIGHT/2}px`;
-        effect.style.width = `${this.WALL_WIDTH}px`;
-        effect.style.height = `${this.WALL_HEIGHT}px`;
+        effect.style.left = `${x - 25}px`;
+        effect.style.top = `${y - 25}px`;
+        effect.style.width = '50px';
+        effect.style.height = '50px';
         document.querySelector('.game-area').appendChild(effect);
         
         // Remove the element after animation completes
