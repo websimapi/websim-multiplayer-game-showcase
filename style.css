@@ -266,6 +266,22 @@ body {
     z-index: 10;
 }
 
+.wall-counter {
+    position: absolute;
+    left: 20px;
+    bottom: 60px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+    z-index: 100;
+    pointer-events: none;
+}
+
 @keyframes dashFade {
     0% {
         opacity: 0.7;

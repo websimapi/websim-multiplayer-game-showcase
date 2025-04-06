@@ -17,6 +17,12 @@ class StructureSystem {
             damaged: '#99704c', // Lighter brown
             critical: '#a34a28'  // Reddish brown
         };
+        
+        // Wall counter UI element
+        this.wallCounter = document.createElement('div');
+        this.wallCounter.className = 'wall-counter';
+        document.querySelector('.game-area').appendChild(this.wallCounter);
+        this.updateWallCounter();
     }
     
     initialize() {
@@ -36,6 +42,9 @@ class StructureSystem {
                 this.placeStructureAtMouse('wall');
             }
         });
+        
+        // Update wall counter initially
+        this.updateWallCounter();
     }
     
     handleRoomStateUpdate(roomState) {
@@ -57,6 +66,9 @@ class StructureSystem {
                     delete this.structures[id];
                 }
             });
+            
+            // Update wall counter after handling structure changes
+            this.updateWallCounter();
         }
     }
     
@@ -144,6 +156,9 @@ class StructureSystem {
         // Update last place time
         this.lastPlaceTime = Date.now();
         
+        // Update wall counter
+        this.updateWallCounter();
+        
         // Send structure placed event for sound/visual effects
         this.game.room.send({
             type: 'structurePlaced',
@@ -213,6 +228,9 @@ class StructureSystem {
             
             // Also remove from local structures cache
             delete this.structures[structureId];
+            
+            // Update wall counter
+            this.updateWallCounter();
             
             // Create destruction effect
             this.createStructureDestroyedEffect(structure.x, structure.y);
@@ -320,6 +338,28 @@ class StructureSystem {
         // Display ghost wall at mouse position when in placement mode
         if (this.placementMode) {
             // We'll handle the display in render method
+        }
+    }
+    
+    updateWallCounter() {
+        // Count how many structures this player has placed
+        const myClientId = this.game.room.clientId;
+        let structureCount = 0;
+        
+        Object.values(this.structures).forEach(structure => {
+            if (structure.ownerId === myClientId) {
+                structureCount++;
+            }
+        });
+        
+        // Update the counter display
+        this.wallCounter.textContent = `Walls: ${structureCount}/${this.MAX_STRUCTURES_PER_PLAYER}`;
+        
+        // Highlight counter in red if at max capacity
+        if (structureCount >= this.MAX_STRUCTURES_PER_PLAYER) {
+            this.wallCounter.style.color = '#ff4444';
+        } else {
+            this.wallCounter.style.color = '#ffffff';
         }
     }
     
