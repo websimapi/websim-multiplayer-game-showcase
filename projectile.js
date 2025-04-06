@@ -4,6 +4,8 @@ class ProjectileSystem {
         this.projectiles = {};
         this.PROJECTILE_SPEED = 400; // pixels per second
         this.PROJECTILE_LIFETIME = 2000; // ms
+        this.PROJECTILE_COOLDOWN = 500; // 0.5 seconds cooldown between shots
+        this.lastShotTime = 0; // Track the last time a projectile was fired
         this.processedProjectileIds = new Set(); // Track which projectiles we've processed
     }
 
@@ -99,6 +101,15 @@ class ProjectileSystem {
     }
     
     shoot(startX, startY, targetX, targetY) {
+        // Check if we're on cooldown
+        const now = Date.now();
+        if (now - this.lastShotTime < this.PROJECTILE_COOLDOWN) {
+            return; // Still on cooldown, don't shoot
+        }
+        
+        // Update last shot time
+        this.lastShotTime = now;
+        
         // Calculate direction vector
         const dx = targetX - startX;
         const dy = targetY - startY;
