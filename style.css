@@ -216,26 +216,26 @@ body {
     text-shadow: 1px 1px 1px black;
 }
 
-@keyframes dashFade {
-    0% {
-        opacity: 0.7;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(1.5);
-    }
+.placement-mode {
+    cursor: crosshair !important;
 }
 
-@keyframes hitFade {
-    0% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(2);
-    }
+.ghost-wall {
+    position: absolute;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index: 5;
+    transition: transform 0.1s ease;
+}
+
+.ghost-wall-valid {
+    background-color: rgba(140, 120, 83, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.ghost-wall-invalid {
+    background-color: rgba(255, 0, 0, 0.5);
+    border: 2px solid rgba(255, 0, 0, 0.7);
 }
 
 .structure-placed-effect {
@@ -264,6 +264,28 @@ body {
     pointer-events: none;
     animation: structureDestroyFade 0.8s forwards;
     z-index: 10;
+}
+
+@keyframes dashFade {
+    0% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.5);
+    }
+}
+
+@keyframes hitFade {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(2);
+    }
 }
 
 @keyframes structureFade {

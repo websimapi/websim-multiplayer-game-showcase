@@ -204,6 +204,16 @@ class Game {
                 // Create structure destroyed effect
                 this.structureSystem.createStructureDestroyedEffect(data.x, data.y);
                 break;
+                
+            case 'placementModeOn':
+                // Show placement mode indicator if desired
+                console.log("Placement mode activated");
+                break;
+                
+            case 'placementModeOff':
+                // Hide placement mode indicator if desired
+                console.log("Placement mode deactivated");
+                break;
         }
     }
 
@@ -396,14 +406,35 @@ class Game {
             
             // Only update our own position
             if (clientId === this.room.clientId) {
-                if (newX !== presence.x || newY !== presence.y) {
-                    this.room.updatePresence({
-                        x: newX,
-                        y: newY
-                    });
-                    
-                    // Update camera to follow our player
-                    this.updateCamera();
+                // Check for collision with structures before moving
+                if (!this.structureSystem.checkPlayerCollisions(presence.x, presence.y, newX, newY)) {
+                    if (newX !== presence.x || newY !== presence.y) {
+                        this.room.updatePresence({
+                            x: newX,
+                            y: newY
+                        });
+                        
+                        // Update camera to follow our player
+                        this.updateCamera();
+                    }
+                } else {
+                    // If collision detected, try to slide along walls
+                    // First try moving just in X direction
+                    if (!this.structureSystem.checkPlayerCollisions(presence.x, presence.y, newX, presence.y)) {
+                        this.room.updatePresence({
+                            x: newX
+                        });
+                        // Update camera
+                        this.updateCamera();
+                    }
+                    // Then try moving just in Y direction
+                    else if (!this.structureSystem.checkPlayerCollisions(presence.x, presence.y, presence.x, newY)) {
+                        this.room.updatePresence({
+                            y: newY
+                        });
+                        // Update camera
+                        this.updateCamera();
+                    }
                 }
             }
         });

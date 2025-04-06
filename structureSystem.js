@@ -8,6 +8,8 @@ class StructureSystem {
         this.MAX_STRUCTURES_PER_PLAYER = 5;
         this.lastPlaceTime = 0;
         this.PLACE_COOLDOWN = 1000; // 1 second cooldown between placing structures
+        this.placementMode = false; // Track if we're in wall placement mode
+        this.gridSize = 50; // Grid size for wall placement
         
         // Color palette for structures based on health percentage
         this.wallColors = {
@@ -21,10 +23,17 @@ class StructureSystem {
         // Set up subscription for room state to track structures
         this.game.room.subscribeRoomState(this.handleRoomStateUpdate.bind(this));
         
-        // Add keypress listener for placing structures
+        // Add keypress listener for toggling placement mode
         window.addEventListener('keydown', (e) => {
             if (e.key === 'e' || e.key === 'E') {
-                this.placeStructure('wall');
+                this.togglePlacementMode();
+            }
+        });
+        
+        // Add click listener for placing structures in placement mode
+        this.game.canvas.addEventListener('click', (e) => {
+            if (this.placementMode) {
+                this.placeStructureAtMouse('wall');
             }
         });
     }
@@ -72,7 +81,19 @@ class StructureSystem {
         return structureCount < this.MAX_STRUCTURES_PER_PLAYER;
     }
     
-    placeStructure(type) {
+    togglePlacementMode() {
+        this.placementMode = !this.placementMode;
+        
+        // Change cursor to indicate placement mode
+        this.game.canvas.style.cursor = this.placementMode ? 'crosshair' : 'default';
+        
+        // Send event for UI feedback
+        this.game.room.send({
+            type: this.placementMode ? 'placementModeOn' : 'placementModeOff'
+        });
+    }
+    
+    placeStructureAtMouse(type) {
         if (!this.canPlaceStructure(type)) {
             return;
         }
@@ -80,33 +101,19 @@ class StructureSystem {
         const myPresence = this.game.room.presence[this.game.room.clientId];
         if (!myPresence) return;
         
-        // Calculate position in front of player based on facing direction
-        let dirX = 0;
-        let dirY = 0;
+        // Get mouse position in world coordinates
+        const mouseX = this.game.mouse.worldX;
+        const mouseY = this.game.mouse.worldY;
         
-        // If player is moving, use that direction
-        if (myPresence.vx !== 0 || myPresence.vy !== 0) {
-            const length = Math.sqrt(myPresence.vx * myPresence.vx + myPresence.vy * myPresence.vy);
-            if (length > 0) {
-                dirX = myPresence.vx / length;
-                dirY = myPresence.vy / length;
-            }
-        } else {
-            // If player is not moving, use direction to mouse
-            const dx = this.game.mouse.worldX - myPresence.x;
-            const dy = this.game.mouse.worldY - myPresence.y;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            
-            if (length > 0) {
-                dirX = dx / length;
-                dirY = dy / length;
-            }
+        // Snap to grid
+        const gridX = Math.floor(mouseX / this.gridSize) * this.gridSize + this.gridSize / 2;
+        const gridY = Math.floor(mouseY / this.gridSize) * this.gridSize + this.gridSize / 2;
+        
+        // Check if there's already a structure at this position
+        if (this.isStructureAtPosition(gridX, gridY)) {
+            // Cannot place wall on top of another wall
+            return;
         }
-        
-        // Position the structure a bit in front of the player
-        const placeDistance = 60;
-        const structureX = Math.round(myPresence.x + dirX * placeDistance);
-        const structureY = Math.round(myPresence.y + dirY * placeDistance);
         
         // Create a unique ID for the structure
         const structureId = `${this.game.room.clientId}-structure-${Date.now()}`;
@@ -114,8 +121,8 @@ class StructureSystem {
         // Create the structure data
         const structureData = {
             type: type,
-            x: structureX,
-            y: structureY,
+            x: gridX,
+            y: gridY,
             width: this.WALL_WIDTH,
             height: this.WALL_HEIGHT,
             health: this.WALL_HEALTH,
@@ -140,13 +147,27 @@ class StructureSystem {
         // Send structure placed event for sound/visual effects
         this.game.room.send({
             type: 'structurePlaced',
-            x: structureX,
-            y: structureY,
+            x: gridX,
+            y: gridY,
             structureType: type
         });
         
         // Create structure placed effect
-        this.createStructurePlacedEffect(structureX, structureY);
+        this.createStructurePlacedEffect(gridX, gridY);
+    }
+    
+    isStructureAtPosition(x, y) {
+        // Check if there's a structure at or very near the given position
+        const margin = 5; // Small margin for error
+        return Object.values(this.structures).some(structure => {
+            return Math.abs(structure.x - x) < (structure.width / 2 + margin) &&
+                   Math.abs(structure.y - y) < (structure.height / 2 + margin);
+        });
+    }
+    
+    placeStructure(type) {
+        // This method is now deprecated - we're using placeStructureAtMouse instead
+        this.togglePlacementMode();
     }
     
     damageStructure(structureId, amount) {
@@ -181,27 +202,25 @@ class StructureSystem {
             y: structure.y
         });
         
-        // If structure is destroyed, remove it after a short delay
+        // If structure is destroyed, remove it immediately
         if (newHealth <= 0) {
-            setTimeout(() => {
-                const currentStructures = { ...(this.game.room.roomState.structures || {}) };
-                currentStructures[structureId] = null;
-                
-                this.game.room.updateRoomState({
-                    structures: currentStructures
-                });
-                
-                // Create destruction effect
-                this.createStructureDestroyedEffect(structure.x, structure.y);
-                
-                // Send destroyed event for sound
-                this.game.room.send({
-                    type: 'structureDestroyed',
-                    x: structure.x,
-                    y: structure.y,
-                    structureType: structure.type
-                });
-            }, 50);
+            const currentStructures = { ...(this.game.room.roomState.structures || {}) };
+            currentStructures[structureId] = null;
+            
+            this.game.room.updateRoomState({
+                structures: currentStructures
+            });
+            
+            // Create destruction effect
+            this.createStructureDestroyedEffect(structure.x, structure.y);
+            
+            // Send destroyed event for sound
+            this.game.room.send({
+                type: 'structureDestroyed',
+                x: structure.x,
+                y: structure.y,
+                structureType: structure.type
+            });
         }
     }
     
@@ -271,8 +290,34 @@ class StructureSystem {
         return false;
     }
     
+    checkPlayerCollisions(playerX, playerY, newX, newY, playerRadius = 20) {
+        // Check for collisions with all structures
+        for (const structure of Object.values(this.structures)) {
+            // Box collision check with player radius
+            const halfWidth = structure.width / 2;
+            const halfHeight = structure.height / 2;
+            
+            // Check if new position would collide with structure
+            if (
+                newX + playerRadius > structure.x - halfWidth &&
+                newX - playerRadius < structure.x + halfWidth &&
+                newY + playerRadius > structure.y - halfHeight &&
+                newY - playerRadius < structure.y + halfHeight
+            ) {
+                // Collision detected, return true
+                return true;
+            }
+        }
+        
+        // No collision detected
+        return false;
+    }
+    
     update(deltaTime) {
-        // No continuous updates needed for structures
+        // Display ghost wall at mouse position when in placement mode
+        if (this.placementMode) {
+            // We'll handle the display in render method
+        }
     }
     
     render(ctx) {
@@ -353,5 +398,37 @@ class StructureSystem {
                 }
             }
         });
+        
+        // Draw ghost wall at mouse position when in placement mode
+        if (this.placementMode) {
+            const mouseX = this.game.mouse.worldX;
+            const mouseY = this.game.mouse.worldY;
+            
+            // Snap to grid
+            const gridX = Math.floor(mouseX / this.gridSize) * this.gridSize + this.gridSize / 2;
+            const gridY = Math.floor(mouseY / this.gridSize) * this.gridSize + this.gridSize / 2;
+            
+            // Check if placement is valid
+            const isValid = !this.isStructureAtPosition(gridX, gridY) && this.canPlaceStructure('wall');
+            
+            // Draw ghost wall with appropriate color
+            ctx.fillStyle = isValid ? 'rgba(140, 120, 83, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+            ctx.fillRect(
+                gridX - this.WALL_WIDTH / 2,
+                gridY - this.WALL_HEIGHT / 2,
+                this.WALL_WIDTH,
+                this.WALL_HEIGHT
+            );
+            
+            // Draw border
+            ctx.strokeStyle = isValid ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 0, 0, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
+                gridX - this.WALL_WIDTH / 2,
+                gridY - this.WALL_HEIGHT / 2,
+                this.WALL_WIDTH,
+                this.WALL_HEIGHT
+            );
+        }
     }
 }
