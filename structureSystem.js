@@ -211,6 +211,9 @@ class StructureSystem {
                 structures: currentStructures
             });
             
+            // Also remove from local structures cache
+            delete this.structures[structureId];
+            
             // Create destruction effect
             this.createStructureDestroyedEffect(structure.x, structure.y);
             
