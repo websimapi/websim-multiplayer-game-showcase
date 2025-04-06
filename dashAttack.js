@@ -147,6 +147,32 @@ class DashAttack {
                 });
             }
         });
+        
+        // Check for collisions with structures
+        Object.entries(this.game.structureSystem.structures).forEach(([structureId, structure]) => {
+            // Skip if structure is owned by player
+            if (structure.ownerId === this.game.room.clientId) {
+                return;
+            }
+            
+            // Simple collision detection with box
+            if (
+                myPresence.x > structure.x - structure.width/2 - this.DASH_RADIUS &&
+                myPresence.x < structure.x + structure.width/2 + this.DASH_RADIUS &&
+                myPresence.y > structure.y - structure.height/2 - this.DASH_RADIUS &&
+                myPresence.y < structure.y + structure.height/2 + this.DASH_RADIUS
+            ) {
+                // Damage the structure
+                this.game.structureSystem.damageStructure(structureId, this.DASH_DAMAGE / 2); // Half damage to structures
+                
+                // Send dash hit event for sound/visual effects
+                this.game.room.send({
+                    type: 'dashHit',
+                    x: structure.x,
+                    y: structure.y
+                });
+            }
+        });
     }
     
     update() {

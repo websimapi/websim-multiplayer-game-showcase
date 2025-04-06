@@ -237,3 +237,53 @@ body {
         transform: scale(2);
     }
 }
+
+.structure-placed-effect {
+    position: absolute;
+    border-radius: 5px;
+    background-color: rgba(140, 120, 83, 0.5);
+    box-shadow: 0 0 10px rgba(140, 120, 83, 0.8);
+    pointer-events: none;
+    animation: structureFade 0.5s forwards;
+    z-index: 10;
+}
+
+.structure-hit-effect {
+    position: absolute;
+    border-radius: 5px;
+    background-color: rgba(255, 150, 50, 0.5);
+    pointer-events: none;
+    animation: hitFade 0.3s forwards;
+    z-index: 10;
+}
+
+.structure-destroyed-effect {
+    position: absolute;
+    border-radius: 5px;
+    background-color: rgba(200, 100, 50, 0.7);
+    pointer-events: none;
+    animation: structureDestroyFade 0.8s forwards;
+    z-index: 10;
+}
+
+@keyframes structureFade {
+    0% {
+        opacity: 0.7;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes structureDestroyFade {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(2);
+    }
+}

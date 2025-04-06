@@ -32,6 +32,9 @@ class Game {
         // Initialize coordinate system
         this.coordinateSystem = new CoordinateSystem(this);
         
+        // Initialize structure system
+        this.structureSystem = new StructureSystem(this);
+        
         // Set up event listeners
         this.setupListeners();
         
@@ -56,6 +59,9 @@ class Game {
         
         // Initialize dash attack system
         this.dashAttack.initialize();
+        
+        // Initialize structure system
+        this.structureSystem.initialize();
         
         // Initialize our player
         this.initializePlayer();
@@ -182,6 +188,21 @@ class Game {
             case 'hit':
                 // Create hit effect
                 this.createHitEffect(data.x, data.y);
+                break;
+                
+            case 'structurePlaced':
+                // Create structure placed effect at the given location
+                this.structureSystem.createStructurePlacedEffect(data.x, data.y);
+                break;
+                
+            case 'structureHit':
+                // Create structure hit effect
+                this.structureSystem.createStructureHitEffect(data.x, data.y);
+                break;
+                
+            case 'structureDestroyed':
+                // Create structure destroyed effect
+                this.structureSystem.createStructureDestroyedEffect(data.x, data.y);
                 break;
         }
     }
@@ -405,6 +426,9 @@ class Game {
         // Update dash attack state
         this.dashAttack.update();
         
+        // Update structure system
+        this.structureSystem.update(deltaTime);
+        
         // Update projectiles using the ProjectileSystem
         this.projectileSystem.update(deltaTime);
     }
@@ -456,6 +480,9 @@ class Game {
             this.ctx.lineTo(this.MAP_WIDTH, y);
             this.ctx.stroke();
         }
+        
+        // Render structures using the StructureSystem
+        this.structureSystem.render(this.ctx);
         
         // Render projectiles using the ProjectileSystem
         this.projectileSystem.render(this.ctx);

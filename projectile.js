@@ -248,6 +248,25 @@ class ProjectileSystem {
                 return;
             }
             
+            // Check for collision with structures first
+            if (this.game.structureSystem.checkProjectileCollisions(projectile)) {
+                // Remove locally
+                delete this.projectiles[projectile.id];
+                this.processedProjectileIds.delete(projectile.id);
+                
+                // Request server-side removal if it's our projectile
+                if (projectile.ownerId === this.game.room.clientId) {
+                    const updatedProjectilesData = { ...this.game.room.roomState.projectilesData };
+                    updatedProjectilesData[projectile.id] = null;
+                    
+                    this.game.room.updateRoomState({
+                        projectilesData: updatedProjectilesData
+                    });
+                }
+                
+                return;
+            }
+            
             // Check for collision with players
             Object.entries(this.game.room.presence).forEach(([clientId, presence]) => {
                 // Skip if it's the owner's projectile or if player doesn't have position
