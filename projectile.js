@@ -4,8 +4,6 @@ class ProjectileSystem {
         this.projectiles = {};
         this.PROJECTILE_SPEED = 400; // pixels per second
         this.PROJECTILE_LIFETIME = 2000; // ms
-        this.PROJECTILE_COOLDOWN = 500; // 0.5 seconds cooldown between shots
-        this.lastShotTime = 0; // Track the last time a projectile was fired
         this.processedProjectileIds = new Set(); // Track which projectiles we've processed
     }
 
@@ -38,7 +36,8 @@ class ProjectileSystem {
                             vx: data.vx,
                             vy: data.vy,
                             ownerId: data.ownerId,
-                            createdAt: data.createdAt
+                            createdAt: data.createdAt,
+                            damage: data.damage
                         };
                     }
                 } else if (data === null && this.projectiles[id]) {
@@ -100,16 +99,7 @@ class ProjectileSystem {
         }, 100);
     }
     
-    shoot(startX, startY, targetX, targetY) {
-        // Check if we're on cooldown
-        const now = Date.now();
-        if (now - this.lastShotTime < this.PROJECTILE_COOLDOWN) {
-            return; // Still on cooldown, don't shoot
-        }
-        
-        // Update last shot time
-        this.lastShotTime = now;
-        
+    shoot(startX, startY, targetX, targetY, speed = this.PROJECTILE_SPEED, damage = 10) {
         // Calculate direction vector
         const dx = targetX - startX;
         const dy = targetY - startY;
@@ -127,10 +117,11 @@ class ProjectileSystem {
         const projectileData = {
             startX: startX,
             startY: startY,
-            vx: normalizedDx * this.PROJECTILE_SPEED,
-            vy: normalizedDy * this.PROJECTILE_SPEED,
+            vx: normalizedDx * speed,
+            vy: normalizedDy * speed,
             ownerId: this.game.room.clientId,
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            damage: damage
         };
         
         const newProjectilesData = {
@@ -246,7 +237,7 @@ class ProjectileSystem {
                         // Request damage to the hit player
                         this.game.room.requestPresenceUpdate(clientId, {
                             type: 'damage',
-                            amount: 10
+                            amount: projectile.damage || 10
                         });
                         
                         // Remove from room state

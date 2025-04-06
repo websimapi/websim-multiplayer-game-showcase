@@ -23,6 +23,9 @@ class Game {
         // Initialize projectile system
         this.projectileSystem = new ProjectileSystem(this);
         
+        // Initialize weapon system
+        this.weapon = new Weapon(this);
+        
         // Set up event listeners
         this.setupListeners();
         
@@ -326,8 +329,8 @@ class Game {
         const myPresence = this.room.presence[this.room.clientId];
         if (!myPresence) return;
         
-        // Delegate to projectile system with world coordinates
-        this.projectileSystem.shoot(myPresence.x, myPresence.y, this.mouse.worldX, this.mouse.worldY);
+        // Delegate to weapon system
+        this.weapon.fire(myPresence.x, myPresence.y, this.mouse.worldX, this.mouse.worldY);
     }
 
     createDashEffect(x, y) {
