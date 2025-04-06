@@ -4,6 +4,7 @@ class ProjectileSystem {
         this.projectiles = {};
         this.PROJECTILE_SPEED = 400; // pixels per second
         this.PROJECTILE_LIFETIME = 2000; // ms
+        this.processedProjectileIds = new Set(); // Track which projectiles we've processed
     }
 
     initialize() {
@@ -17,21 +18,39 @@ class ProjectileSystem {
     
     handleRoomStateUpdate(roomState) {
         if (roomState.projectilesData) {
+            // Track which projectiles we've seen in this update
+            const currentProjectileIds = new Set();
+            
             // New projectiles were created
             Object.entries(roomState.projectilesData || {}).forEach(([id, data]) => {
+                currentProjectileIds.add(id);
+                
                 if (!this.projectiles[id] && data) {
-                    this.projectiles[id] = {
-                        id: id,
-                        x: data.startX,
-                        y: data.startY,
-                        vx: data.vx,
-                        vy: data.vy,
-                        ownerId: data.ownerId,
-                        createdAt: data.createdAt
-                    };
+                    // Only process each projectile once
+                    if (!this.processedProjectileIds.has(id)) {
+                        this.processedProjectileIds.add(id);
+                        this.projectiles[id] = {
+                            id: id,
+                            x: data.startX,
+                            y: data.startY,
+                            vx: data.vx,
+                            vy: data.vy,
+                            ownerId: data.ownerId,
+                            createdAt: data.createdAt
+                        };
+                    }
                 } else if (data === null && this.projectiles[id]) {
                     // Projectile was explicitly deleted
                     delete this.projectiles[id];
+                    this.processedProjectileIds.delete(id); // Allow this ID to be reused
+                }
+            });
+            
+            // Remove any projectiles that are no longer in room state
+            Object.keys(this.projectiles).forEach(id => {
+                if (!currentProjectileIds.has(id) && roomState.projectilesData[id] === null) {
+                    delete this.projectiles[id];
+                    this.processedProjectileIds.delete(id);
                 }
             });
         }
@@ -140,8 +159,32 @@ class ProjectileSystem {
     }
     
     update(deltaTime) {
+        // Clear projectiles that have expired
+        const now = Date.now();
+        Object.values(this.projectiles).forEach(projectile => {
+            if (now - projectile.createdAt > this.PROJECTILE_LIFETIME) {
+                delete this.projectiles[projectile.id];
+                this.processedProjectileIds.delete(projectile.id);
+                
+                // Request server-side removal if it's our projectile
+                if (projectile.ownerId === this.game.room.clientId) {
+                    const updatedProjectilesData = { ...this.game.room.roomState.projectilesData };
+                    updatedProjectilesData[projectile.id] = null;
+                    
+                    this.game.room.updateRoomState({
+                        projectilesData: updatedProjectilesData
+                    });
+                }
+            }
+        });
+        
         // Update projectile positions locally based on their velocity
         Object.values(this.projectiles).forEach(projectile => {
+            // Skip invalid projectiles
+            if (!projectile || projectile.x === undefined || projectile.y === undefined) {
+                return;
+            }
+            
             // Update projectile position
             projectile.x += projectile.vx * deltaTime;
             projectile.y += projectile.vy * deltaTime;
@@ -152,6 +195,7 @@ class ProjectileSystem {
                 
                 // Remove locally
                 delete this.projectiles[projectile.id];
+                this.processedProjectileIds.delete(projectile.id);
                 
                 // Request server-side removal if it's our projectile
                 if (projectile.ownerId === this.game.room.clientId) {
@@ -184,6 +228,7 @@ class ProjectileSystem {
                 if (distance < 20) { // Player radius + projectile radius
                     // Remove locally
                     delete this.projectiles[projectile.id];
+                    this.processedProjectileIds.delete(projectile.id);
                     
                     // Request server-side removal if it's our projectile
                     if (projectile.ownerId === this.game.room.clientId) {
@@ -209,6 +254,11 @@ class ProjectileSystem {
     render(ctx) {
         // Draw projectiles only if they're in view
         Object.values(this.projectiles).forEach(projectile => {
+            // Skip invalid projectiles
+            if (!projectile || projectile.x === undefined || projectile.y === undefined) {
+                return;
+            }
+            
             // Skip if projectile is outside of camera view
             if (projectile.x < this.game.camera.x - 10 || 
                 projectile.x > this.game.camera.x + this.game.canvas.width + 10 ||
