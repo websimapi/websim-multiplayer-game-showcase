@@ -254,21 +254,6 @@ class StructureSystem {
         }
     }
     
-    createStructurePlacedEffect(x, y) {
-        const effect = document.createElement('div');
-        effect.className = 'structure-placed-effect';
-        effect.style.left = `${x - 25}px`;
-        effect.style.top = `${y - 25}px`;
-        effect.style.width = '50px';
-        effect.style.height = '50px';
-        document.querySelector('.game-area').appendChild(effect);
-        
-        // Remove the element after animation completes
-        setTimeout(() => {
-            effect.remove();
-        }, 500);
-    }
-    
     createStructureHitEffect(x, y) {
         const effect = document.createElement('div');
         effect.className = 'structure-hit-effect';
@@ -297,6 +282,21 @@ class StructureSystem {
         setTimeout(() => {
             effect.remove();
         }, 800);
+    }
+    
+    createStructurePlacedEffect(x, y) {
+        const effect = document.createElement('div');
+        effect.className = 'structure-placed-effect';
+        effect.style.left = `${x - 25}px`;
+        effect.style.top = `${y - 25}px`;
+        effect.style.width = '50px';
+        effect.style.height = '50px';
+        document.querySelector('.game-area').appendChild(effect);
+        
+        // Remove the element after animation completes
+        setTimeout(() => {
+            effect.remove();
+        }, 500);
     }
     
     checkProjectileCollisions(projectile) {
