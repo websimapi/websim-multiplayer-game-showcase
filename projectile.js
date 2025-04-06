@@ -28,6 +28,15 @@ class ProjectileSystem {
                 if (!this.projectiles[id] && data) {
                     // Only process each projectile once
                     if (!this.processedProjectileIds.has(id)) {
+                        // Check if this player is exceeding bullet threshold
+                        if (data.ownerId !== this.game.room.clientId) {
+                            const isWithinThreshold = this.game.weapon.trackBullet(data.ownerId);
+                            if (!isWithinThreshold) {
+                                // Skip processing this bullet from spamming player
+                                return;
+                            }
+                        }
+                        
                         this.processedProjectileIds.add(id);
                         this.projectiles[id] = {
                             id: id,
