@@ -4,7 +4,7 @@ class Game {
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.players = {}; // Player characters
-        this.projectiles = {}; // Active projectiles
+        this.projectileManager = new ProjectileManager(this); // New ProjectileManager
         this.lastUpdateTime = 0;
         this.keys = {}; // For tracking key presses
         this.mouse = { x: 0, y: 0 }; // For tracking mouse position
@@ -14,12 +14,8 @@ class Game {
         this.DASH_SPEED = 600; // pixels per second
         this.DASH_DURATION = 200; // ms
         this.DASH_COOLDOWN = 1000; // ms
-        this.PROJECTILE_SPEED = 400; // pixels per second
-        this.PROJECTILE_LIFETIME = 2000; // ms
-        this.PROJECTILE_RADIUS = 5;
-        this.PLAYER_RADIUS = 20;
         this.MAX_HEALTH = 100;
-
+        
         // Set up event listeners
         this.setupListeners();
         
@@ -78,8 +74,7 @@ class Game {
     handleRoomStateUpdate(roomState) {
         // Handle the projectiles and other room state changes
         if (roomState.projectiles) {
-            // Store local copy of projectiles for rendering
-            this.projectiles = roomState.projectiles;
+            this.projectileManager.syncProjectiles(roomState.projectiles);
         }
     }
 
@@ -320,21 +315,21 @@ class Game {
         // Create a unique ID for the projectile
         const projectileId = `${this.room.clientId}-${Date.now()}`;
         
-        // Calculate exact spawn position at edge of player
-        const spawnX = myPresence.x + normalizedDx * this.PLAYER_RADIUS;
-        const spawnY = myPresence.y + normalizedDy * this.PLAYER_RADIUS;
+        // Create the projectile with timestamp
+        const newProjectile = {
+            x: myPresence.x,
+            y: myPresence.y,
+            vx: normalizedDx * this.projectileManager.PROJECTILE_SPEED,
+            vy: normalizedDy * this.projectileManager.PROJECTILE_SPEED,
+            ownerId: this.room.clientId,
+            createdAt: Date.now(),
+            lastUpdateTime: Date.now() // Add timestamp for interpolation
+        };
         
         // Add projectile to room state
         const newProjectiles = {
             ...(this.room.roomState.projectiles || {}),
-            [projectileId]: {
-                x: spawnX,
-                y: spawnY,
-                vx: normalizedDx * this.PROJECTILE_SPEED,
-                vy: normalizedDy * this.PROJECTILE_SPEED,
-                ownerId: this.room.clientId,
-                createdAt: Date.now()
-            }
+            [projectileId]: newProjectile
         };
         
         this.room.updateRoomState({
@@ -344,13 +339,13 @@ class Game {
         // Send shoot event for sound
         this.room.send({
             type: 'shoot',
-            x: spawnX,
-            y: spawnY,
+            x: myPresence.x,
+            y: myPresence.y,
             vx: normalizedDx,
             vy: normalizedDy
         });
         
-        // Auto-remove projectile after lifetime
+        // Auto-remove projectile after 2 seconds
         setTimeout(() => {
             if (this.room.roomState.projectiles && this.room.roomState.projectiles[projectileId]) {
                 const updatedProjectiles = { ...this.room.roomState.projectiles };
@@ -360,7 +355,7 @@ class Game {
                     projectiles: updatedProjectiles
                 });
             }
-        }, this.PROJECTILE_LIFETIME);
+        }, 2000);
     }
 
     createDashEffect(x, y) {
@@ -445,7 +440,7 @@ class Game {
         }
     }
 
-    updateGameState(deltaTime) {
+    updatePlayerPositions(deltaTime) {
         // Update player positions based on velocity
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
             if (presence.x === undefined || presence.y === undefined) return;
@@ -467,67 +462,6 @@ class Game {
                 }
             }
         });
-        
-        // Update projectiles - only if we're the authority (first connected client)
-        const firstClientId = Object.keys(this.room.peers)[0];
-        if (this.room.clientId === firstClientId && this.room.roomState.projectiles) {
-            const updatedProjectiles = { ...this.room.roomState.projectiles };
-            let projectilesChanged = false;
-            
-            Object.entries(updatedProjectiles).forEach(([id, projectile]) => {
-                // Update projectile position
-                const newX = projectile.x + projectile.vx * deltaTime;
-                const newY = projectile.y + projectile.vy * deltaTime;
-                
-                // Check if projectile is out of bounds
-                if (newX < 0 || newX > this.canvas.width ||
-                    newY < 0 || newY > this.canvas.height) {
-                    delete updatedProjectiles[id];
-                    projectilesChanged = true;
-                    return;
-                }
-                
-                // Update position
-                projectile.x = newX;
-                projectile.y = newY;
-                projectilesChanged = true;
-                
-                // Check for collision with players
-                Object.entries(this.room.presence).forEach(([clientId, presence]) => {
-                    // Skip if it's the owner's projectile or if player doesn't have position
-                    if (clientId === projectile.ownerId || 
-                        presence.x === undefined || 
-                        presence.y === undefined ||
-                        presence.health <= 0) {
-                        return;
-                    }
-                    
-                    // Simple collision detection
-                    const dx = presence.x - projectile.x;
-                    const dy = presence.y - projectile.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < this.PLAYER_RADIUS + this.PROJECTILE_RADIUS) {
-                        // Request damage to the hit player
-                        this.room.requestPresenceUpdate(clientId, {
-                            type: 'damage',
-                            amount: 10
-                        });
-                        
-                        // Remove the projectile
-                        delete updatedProjectiles[id];
-                        projectilesChanged = true;
-                    }
-                });
-            });
-            
-            // Only update room state if projectiles changed
-            if (projectilesChanged) {
-                this.room.updateRoomState({
-                    projectiles: updatedProjectiles
-                });
-            }
-        }
     }
 
     render() {
@@ -554,21 +488,8 @@ class Game {
             this.ctx.stroke();
         }
         
-        // Draw projectiles from our synchronized local copy
-        if (this.projectiles) {
-            Object.values(this.projectiles).forEach(projectile => {
-                this.ctx.fillStyle = '#ffff00';
-                this.ctx.beginPath();
-                this.ctx.arc(projectile.x, projectile.y, this.PROJECTILE_RADIUS, 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                // Add glow effect
-                this.ctx.shadowColor = '#ffaa00';
-                this.ctx.shadowBlur = 10;
-                this.ctx.fill();
-                this.ctx.shadowBlur = 0;
-            });
-        }
+        // Draw projectiles - replaced with ProjectileManager rendering
+        this.projectileManager.render(this.ctx);
         
         // Draw players
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
@@ -695,7 +616,8 @@ class Game {
         this.handlePlayerInput(deltaTime);
         
         // Update game state
-        this.updateGameState(deltaTime);
+        this.updatePlayerPositions(deltaTime);
+        this.projectileManager.update(deltaTime);
         
         // Render the game
         this.render();
