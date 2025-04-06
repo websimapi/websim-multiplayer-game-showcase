@@ -88,6 +88,7 @@ body {
 .game-area {
     flex-grow: 1;
     position: relative;
+    overflow: hidden;
 }
 
 #game-canvas {
@@ -160,6 +161,7 @@ body {
     border-radius: 50%;
     background-color: #ffff00;
     box-shadow: 0 0 5px #ffaa00;
+    z-index: 10;
 }
 
 .dash-effect {
@@ -170,6 +172,18 @@ body {
     background-color: rgba(255, 255, 255, 0.3);
     pointer-events: none;
     animation: dashFade 0.3s forwards;
+    z-index: 10;
+}
+
+.hit-effect {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: rgba(255, 100, 100, 0.8);
+    pointer-events: none;
+    animation: hitFade 0.3s forwards;
+    z-index: 10;
 }
 
 @keyframes dashFade {
@@ -183,16 +197,6 @@ body {
     }
 }
 
-.hit-effect {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background-color: rgba(255, 100, 100, 0.8);
-    pointer-events: none;
-    animation: hitFade 0.3s forwards;
-}
-
 @keyframes hitFade {
     0% {
         opacity: 1;
@@ -203,4 +207,3 @@ body {
         transform: scale(2);
     }
 }
-

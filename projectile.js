@@ -146,9 +146,9 @@ class ProjectileSystem {
             projectile.x += projectile.vx * deltaTime;
             projectile.y += projectile.vy * deltaTime;
             
-            // Check if projectile is out of bounds
-            if (projectile.x < 0 || projectile.x > this.game.canvas.width ||
-                projectile.y < 0 || projectile.y > this.game.canvas.height) {
+            // Check if projectile is out of bounds of the map
+            if (projectile.x < 0 || projectile.x > this.game.MAP_WIDTH ||
+                projectile.y < 0 || projectile.y > this.game.MAP_HEIGHT) {
                 
                 // Remove locally
                 delete this.projectiles[projectile.id];
@@ -207,8 +207,16 @@ class ProjectileSystem {
     }
     
     render(ctx) {
-        // Draw projectiles
+        // Draw projectiles only if they're in view
         Object.values(this.projectiles).forEach(projectile => {
+            // Skip if projectile is outside of camera view
+            if (projectile.x < this.game.camera.x - 10 || 
+                projectile.x > this.game.camera.x + this.game.canvas.width + 10 ||
+                projectile.y < this.game.camera.y - 10 || 
+                projectile.y > this.game.camera.y + this.game.canvas.height + 10) {
+                return;
+            }
+            
             ctx.fillStyle = '#ffff00';
             ctx.beginPath();
             ctx.arc(projectile.x, projectile.y, 5, 0, Math.PI * 2);

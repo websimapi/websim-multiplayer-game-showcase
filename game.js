@@ -6,7 +6,7 @@ class Game {
         this.players = {}; // Player characters
         this.lastUpdateTime = 0;
         this.keys = {}; // For tracking key presses
-        this.mouse = { x: 0, y: 0 }; // For tracking mouse position
+        this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0 }; // For tracking mouse position
         
         // Game constants
         this.PLAYER_SPEED = 200; // pixels per second
@@ -14,6 +14,11 @@ class Game {
         this.DASH_DURATION = 200; // ms
         this.DASH_COOLDOWN = 1000; // ms
         this.MAX_HEALTH = 100;
+        
+        // Map and camera settings
+        this.MAP_WIDTH = 2000;
+        this.MAP_HEIGHT = 1500;
+        this.camera = { x: 0, y: 0 };
 
         // Initialize projectile system
         this.projectileSystem = new ProjectileSystem(this);
@@ -54,13 +59,19 @@ class Game {
     resizeCanvas() {
         this.canvas.width = this.canvas.clientWidth;
         this.canvas.height = this.canvas.clientHeight;
+        
+        // Center camera if player isn't initialized yet
+        if (!this.room || !this.room.presence || !this.room.presence[this.room.clientId]) {
+            this.camera.x = (this.MAP_WIDTH - this.canvas.width) / 2;
+            this.camera.y = (this.MAP_HEIGHT - this.canvas.height) / 2;
+        }
     }
 
     initializePlayer() {
-        // Initialize player with starting values
+        // Initialize player with starting values in the middle of the map
         this.room.updatePresence({
-            x: this.canvas.width / 2,
-            y: this.canvas.height / 2,
+            x: this.MAP_WIDTH / 2,
+            y: this.MAP_HEIGHT / 2,
             vx: 0,
             vy: 0,
             health: this.MAX_HEALTH,
@@ -69,6 +80,9 @@ class Game {
             dashCooldown: false,
             lastDashTime: 0
         });
+        
+        // Initialize camera position to center on player
+        this.updateCamera();
     }
 
     handlePresenceUpdate(presence) {
@@ -114,10 +128,13 @@ class Game {
                 // Reset our position and health after a short delay
                 setTimeout(() => {
                     this.room.updatePresence({
-                        x: Math.random() * this.canvas.width,
-                        y: Math.random() * this.canvas.height,
+                        x: Math.random() * this.MAP_WIDTH,
+                        y: Math.random() * this.MAP_HEIGHT,
                         health: this.MAX_HEALTH
                     });
+                    
+                    // Update camera to follow our player
+                    this.updateCamera();
                 }, 1000);
             }
         } else if (request.type === 'addScore') {
@@ -237,6 +254,10 @@ class Game {
             const rect = this.canvas.getBoundingClientRect();
             this.mouse.x = e.clientX - rect.left;
             this.mouse.y = e.clientY - rect.top;
+            
+            // Update world mouse position
+            this.mouse.worldX = this.mouse.x + this.camera.x;
+            this.mouse.worldY = this.mouse.y + this.camera.y;
         });
         
         this.canvas.addEventListener('click', (e) => {
@@ -255,9 +276,9 @@ class Game {
             return;
         }
         
-        // Calculate dash direction (towards mouse)
-        const dx = this.mouse.x - myPresence.x;
-        const dy = this.mouse.y - myPresence.y;
+        // Calculate dash direction (towards mouse in world coordinates)
+        const dx = this.mouse.worldX - myPresence.x;
+        const dy = this.mouse.worldY - myPresence.y;
         const length = Math.sqrt(dx * dx + dy * dy);
         
         if (length === 0) return;
@@ -305,8 +326,8 @@ class Game {
         const myPresence = this.room.presence[this.room.clientId];
         if (!myPresence) return;
         
-        // Delegate to projectile system
-        this.projectileSystem.shoot(myPresence.x, myPresence.y, this.mouse.x, this.mouse.y);
+        // Delegate to projectile system with world coordinates
+        this.projectileSystem.shoot(myPresence.x, myPresence.y, this.mouse.worldX, this.mouse.worldY);
     }
 
     createDashEffect(x, y) {
@@ -372,9 +393,9 @@ class Game {
             let newX = presence.x + (presence.vx || 0) * deltaTime;
             let newY = presence.y + (presence.vy || 0) * deltaTime;
             
-            // Keep players within bounds
-            newX = Math.max(20, Math.min(this.canvas.width - 20, newX));
-            newY = Math.max(20, Math.min(this.canvas.height - 20, newY));
+            // Keep players within the map bounds
+            newX = Math.max(20, Math.min(this.MAP_WIDTH - 20, newX));
+            newY = Math.max(20, Math.min(this.MAP_HEIGHT - 20, newY));
             
             // Only update our own position
             if (clientId === this.room.clientId) {
@@ -383,12 +404,35 @@ class Game {
                         x: newX,
                         y: newY
                     });
+                    
+                    // Update camera to follow our player
+                    this.updateCamera();
                 }
             }
         });
         
+        // Update mouse position relative to the world, not the canvas
+        const myPresence = this.room.presence[this.room.clientId];
+        if (myPresence) {
+            this.mouse.worldX = this.mouse.x + this.camera.x;
+            this.mouse.worldY = this.mouse.y + this.camera.y;
+        }
+        
         // Update projectiles using the ProjectileSystem
         this.projectileSystem.update(deltaTime);
+    }
+    
+    updateCamera() {
+        const myPresence = this.room.presence[this.room.clientId];
+        if (!myPresence) return;
+        
+        // Center camera on player with smooth movement
+        const targetX = myPresence.x - this.canvas.width / 2;
+        const targetY = myPresence.y - this.canvas.height / 2;
+        
+        // Clamp camera to map boundaries
+        this.camera.x = Math.max(0, Math.min(this.MAP_WIDTH - this.canvas.width, targetX));
+        this.camera.y = Math.max(0, Math.min(this.MAP_HEIGHT - this.canvas.height, targetY));
     }
 
     render() {
@@ -396,22 +440,33 @@ class Game {
         this.ctx.fillStyle = '#2a2a2a';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // Save the canvas state before transforming
+        this.ctx.save();
+        
+        // Apply camera transform
+        this.ctx.translate(-this.camera.x, -this.camera.y);
+        
+        // Draw map boundaries
+        this.ctx.strokeStyle = '#ff0000';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(0, 0, this.MAP_WIDTH, this.MAP_HEIGHT);
+        
         // Draw grid
         this.ctx.strokeStyle = '#333333';
         this.ctx.lineWidth = 1;
         
         const gridSize = 50;
-        for (let x = 0; x < this.canvas.width; x += gridSize) {
+        for (let x = 0; x < this.MAP_WIDTH; x += gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.lineTo(x, this.MAP_HEIGHT);
             this.ctx.stroke();
         }
         
-        for (let y = 0; y < this.canvas.height; y += gridSize) {
+        for (let y = 0; y < this.MAP_HEIGHT; y += gridSize) {
             this.ctx.beginPath();
             this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
+            this.ctx.lineTo(this.MAP_WIDTH, y);
             this.ctx.stroke();
         }
         
@@ -421,6 +476,14 @@ class Game {
         // Draw players
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
             if (presence.x === undefined || presence.y === undefined) return;
+            
+            // Skip if player is outside of camera view (with some padding)
+            if (presence.x < this.camera.x - 50 || 
+                presence.x > this.camera.x + this.canvas.width + 50 ||
+                presence.y < this.camera.y - 50 || 
+                presence.y > this.camera.y + this.canvas.height + 50) {
+                return;
+            }
             
             const peer = this.room.peers[clientId];
             if (!peer) return;
@@ -528,6 +591,55 @@ class Game {
                 this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
                 this.ctx.fill();
             }
+        });
+        
+        // Restore the canvas state after rendering world elements
+        this.ctx.restore();
+        
+        // UI elements that should be fixed to the screen, not the world
+        // Draw mini-map in the corner
+        this.drawMiniMap();
+    }
+    
+    drawMiniMap() {
+        const miniMapWidth = 150;
+        const miniMapHeight = 120;
+        const miniMapX = this.canvas.width - miniMapWidth - 10;
+        const miniMapY = 10;
+        const miniMapScale = Math.min(miniMapWidth / this.MAP_WIDTH, miniMapHeight / this.MAP_HEIGHT);
+        
+        // Draw mini-map background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillRect(miniMapX, miniMapY, miniMapWidth, miniMapHeight);
+        
+        // Draw world boundary on mini-map
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(miniMapX, miniMapY, miniMapWidth, miniMapHeight);
+        
+        // Draw current viewport on mini-map
+        this.ctx.strokeStyle = '#ffff00';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(
+            miniMapX + this.camera.x * miniMapScale,
+            miniMapY + this.camera.y * miniMapScale,
+            this.canvas.width * miniMapScale,
+            this.canvas.height * miniMapScale
+        );
+        
+        // Draw players on mini-map
+        Object.entries(this.room.presence).forEach(([clientId, presence]) => {
+            if (presence.x === undefined || presence.y === undefined) return;
+            
+            // Calculate mini-map position
+            const dotX = miniMapX + presence.x * miniMapScale;
+            const dotY = miniMapY + presence.y * miniMapScale;
+            
+            // Draw player dot
+            this.ctx.fillStyle = clientId === this.room.clientId ? '#00ff00' : '#ff0000';
+            this.ctx.beginPath();
+            this.ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+            this.ctx.fill();
         });
     }
 
