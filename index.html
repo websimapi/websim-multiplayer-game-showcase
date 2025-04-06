@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Game Showcase</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="sidebar">
+            <h1>Multiplayer Showcase</h1>
+            <div class="players-list">
+                <h2>Connected Players</h2>
+                <ul id="players-container"></ul>
+            </div>
+            <div class="controls">
+                <h2>Controls</h2>
+                <p>WASD or Arrow Keys: Move</p>
+                <p>Space: Dash Attack</p>
+                <p>Click: Shoot</p>
+            </div>
+        </div>
+        <div class="game-area">
+            <canvas id="game-canvas"></canvas>
+            <div class="overlay" id="game-overlay">
+                <div class="health-container">
+                    <div id="health-bar"></div>
+                </div>
+                <div class="scoreboard" id="scoreboard"></div>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
