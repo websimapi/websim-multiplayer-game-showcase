@@ -186,6 +186,17 @@ body {
     z-index: 10;
 }
 
+.dash-hit-effect {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: rgba(255, 200, 100, 0.8);
+    pointer-events: none;
+    animation: hitFade 0.4s forwards;
+    z-index: 10;
+}
+
 @keyframes dashFade {
     0% {
         opacity: 0.7;

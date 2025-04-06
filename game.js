@@ -26,6 +26,9 @@ class Game {
         // Initialize weapon system
         this.weapon = new Weapon(this);
         
+        // Initialize dash attack system
+        this.dashAttack = new DashAttack(this);
+        
         // Set up event listeners
         this.setupListeners();
         
@@ -47,6 +50,9 @@ class Game {
         
         // Initialize projectile system
         this.projectileSystem.initialize();
+        
+        // Initialize dash attack system
+        this.dashAttack.initialize();
         
         // Initialize our player
         this.initializePlayer();
@@ -269,60 +275,8 @@ class Game {
     }
 
     dash() {
-        const myPresence = this.room.presence[this.room.clientId];
-        if (!myPresence) return;
-        
-        const now = Date.now();
-        
-        // Check if dash is on cooldown
-        if (myPresence.dashCooldown || now - myPresence.lastDashTime < this.DASH_COOLDOWN) {
-            return;
-        }
-        
-        // Calculate dash direction (towards mouse in world coordinates)
-        const dx = this.mouse.worldX - myPresence.x;
-        const dy = this.mouse.worldY - myPresence.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        
-        if (length === 0) return;
-        
-        const normalizedDx = dx / length;
-        const normalizedDy = dy / length;
-        
-        // Update presence with dash state
-        this.room.updatePresence({
-            dashing: true,
-            dashCooldown: true,
-            lastDashTime: now,
-            vx: normalizedDx * this.DASH_SPEED,
-            vy: normalizedDy * this.DASH_SPEED
-        });
-        
-        // Send dash effect event
-        this.room.send({
-            type: 'dash',
-            x: myPresence.x,
-            y: myPresence.y
-        });
-        
-        // Create dash effect
-        this.createDashEffect(myPresence.x, myPresence.y);
-        
-        // End dash after duration
-        setTimeout(() => {
-            this.room.updatePresence({
-                dashing: false,
-                vx: 0,
-                vy: 0
-            });
-            
-            // Reset cooldown after cooldown period
-            setTimeout(() => {
-                this.room.updatePresence({
-                    dashCooldown: false
-                });
-            }, this.DASH_COOLDOWN - this.DASH_DURATION);
-        }, this.DASH_DURATION);
+        // Use the dash attack system instead of inline code
+        this.dashAttack.dash();
     }
 
     shoot() {
@@ -420,6 +374,9 @@ class Game {
             this.mouse.worldX = this.mouse.x + this.camera.x;
             this.mouse.worldY = this.mouse.y + this.camera.y;
         }
+        
+        // Update dash attack state
+        this.dashAttack.update();
         
         // Update projectiles using the ProjectileSystem
         this.projectileSystem.update(deltaTime);

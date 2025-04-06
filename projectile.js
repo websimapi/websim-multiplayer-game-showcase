@@ -69,6 +69,10 @@ class ProjectileSystem {
                 // Create projectile effect
                 this.createProjectileEffect(data.x, data.y, data.vx, data.vy);
                 break;
+            case 'dashHit':
+                // Create dash hit effect
+                this.createDashHitEffect(data.x, data.y);
+                break;
         }
     }
     
@@ -97,6 +101,23 @@ class ProjectileSystem {
         setTimeout(() => {
             effect.remove();
         }, 100);
+    }
+    
+    createDashHitEffect(x, y) {
+        // Visual effect for dash hit
+        const effect = document.createElement('div');
+        effect.className = 'hit-effect';
+        effect.style.left = `${x - 15}px`;
+        effect.style.top = `${y - 15}px`;
+        effect.style.width = '30px';
+        effect.style.height = '30px';
+        effect.style.backgroundColor = 'rgba(255, 200, 100, 0.8)';
+        document.querySelector('.game-area').appendChild(effect);
+        
+        // Remove the element after animation
+        setTimeout(() => {
+            effect.remove();
+        }, 300);
     }
     
     shoot(startX, startY, targetX, targetY, speed = this.PROJECTILE_SPEED, damage = 10) {
