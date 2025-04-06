@@ -197,6 +197,25 @@ body {
     z-index: 10;
 }
 
+.coordinate-display {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 8px 12px;
+    border-radius: 5px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.coordinate-text {
+    font-family: monospace;
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+}
+
 @keyframes dashFade {
     0% {
         opacity: 0.7;

@@ -29,6 +29,9 @@ class Game {
         // Initialize dash attack system
         this.dashAttack = new DashAttack(this);
         
+        // Initialize coordinate system
+        this.coordinateSystem = new CoordinateSystem(this);
+        
         // Set up event listeners
         this.setupListeners();
         
@@ -395,6 +398,9 @@ class Game {
                 this.shoot();
             }
         }
+        
+        // Update coordinate display
+        this.coordinateSystem.update();
         
         // Update dash attack state
         this.dashAttack.update();
