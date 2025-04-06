@@ -269,8 +269,24 @@ class Game {
             this.mouse.worldY = this.mouse.y + this.camera.y;
         });
         
+        // Click to shoot
         this.canvas.addEventListener('click', (e) => {
             this.shoot();
+        });
+        
+        // Mouse down/up for rapid fire
+        this.isMouseDown = false;
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.isMouseDown = true;
+        });
+        
+        this.canvas.addEventListener('mouseup', (e) => {
+            this.isMouseDown = false;
+        });
+        
+        // Handle case when mouse leaves canvas while held down
+        this.canvas.addEventListener('mouseleave', (e) => {
+            this.isMouseDown = false;
         });
     }
 
@@ -373,6 +389,11 @@ class Game {
         if (myPresence) {
             this.mouse.worldX = this.mouse.x + this.camera.x;
             this.mouse.worldY = this.mouse.y + this.camera.y;
+            
+            // Handle rapid fire when mouse is held down
+            if (this.isMouseDown) {
+                this.shoot();
+            }
         }
         
         // Update dash attack state
