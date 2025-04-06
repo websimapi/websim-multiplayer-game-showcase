@@ -12,7 +12,7 @@ class CoordinateSystem {
     }
     
     update() {
-        const myPresence = this.game.room.presence[this.game.room.clientId];
+        const myPresence = this.game.room?.presence?.[this.game.room?.clientId];
         if (!myPresence) return;
         
         // Update coordinate display with exact floating point values
