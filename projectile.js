@@ -2,8 +2,8 @@ class ProjectileSystem {
     constructor(game) {
         this.game = game;
         this.projectiles = {};
-        this.PROJECTILE_SPEED = 400; // pixels per second
-        this.PROJECTILE_LIFETIME = 2000; // ms
+        this.PROJECTILE_SPEED = 600; // Increased from 400 to 600 to match weapon speed
+        this.PROJECTILE_LIFETIME = 1500; // Reduced from 2000ms to 1500ms for faster gameplay
         this.processedProjectileIds = new Set(); // Track which projectiles we've processed
     }
 
@@ -120,7 +120,7 @@ class ProjectileSystem {
         }, 300);
     }
     
-    shoot(startX, startY, targetX, targetY, speed = this.PROJECTILE_SPEED, damage = 10) {
+    shoot(startX, startY, targetX, targetY, speed = this.PROJECTILE_SPEED, damage = 5) {
         // Calculate direction vector
         const dx = targetX - startX;
         const dy = targetY - startY;

@@ -2,9 +2,9 @@ class Weapon {
     constructor(game) {
         this.game = game;
         this.lastFireTime = 0;
-        this.fireRate = 300; // 0.3 seconds in milliseconds
-        this.bulletSpeed = 400; // pixels per second
-        this.damage = 10;
+        this.fireRate = 100; // Changed from 300ms to 100ms for rapid fire
+        this.bulletSpeed = 600; // Increased from 400 to 600 for faster bullets
+        this.damage = 5; // Reduced damage per bullet since firing rate is higher
     }
 
     canFire() {
