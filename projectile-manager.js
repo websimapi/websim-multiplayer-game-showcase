@@ -7,6 +7,8 @@ class ProjectileManager {
         // Constants
         this.PROJECTILE_SPEED = 400; // pixels per second
         this.INTERPOLATION_DELAY = 100; // ms - buffer for smoother interpolation
+        this.PROJECTILE_LIFETIME = 2000; // ms - time before auto-removing
+        this.lastCleanupTime = Date.now();
     }
     
     syncProjectiles(serverProjectiles) {
@@ -61,6 +63,36 @@ class ProjectileManager {
         
         // Handle collisions with players
         this.checkCollisions();
+        
+        // Periodically clean up projectiles that have existed too long
+        const now = Date.now();
+        if (now - this.lastCleanupTime > 500) { // check every half second
+            this.cleanupProjectiles();
+            this.lastCleanupTime = now;
+        }
+    }
+    
+    cleanupProjectiles() {
+        if (!this.game.room.roomState.projectiles) return;
+        
+        const updatedProjectiles = { ...this.game.room.roomState.projectiles };
+        let projectilesChanged = false;
+        const now = Date.now();
+        
+        Object.entries(updatedProjectiles).forEach(([id, projectile]) => {
+            // Remove projectiles that have existed too long
+            if (now - projectile.createdAt > this.PROJECTILE_LIFETIME) {
+                delete updatedProjectiles[id];
+                projectilesChanged = true;
+            }
+        });
+        
+        // Only update room state if projectiles changed
+        if (projectilesChanged) {
+            this.game.room.updateRoomState({
+                projectiles: updatedProjectiles
+            });
+        }
     }
     
     checkCollisions() {
@@ -70,6 +102,11 @@ class ProjectileManager {
         let projectilesChanged = false;
         
         Object.entries(updatedProjectiles).forEach(([id, projectile]) => {
+            // Skip if this client doesn't own the projectile
+            if (projectile.ownerId !== this.game.room.clientId) {
+                return;
+            }
+            
             // Check if projectile is out of bounds
             if (projectile.x < 0 || projectile.x > this.game.canvas.width ||
                 projectile.y < 0 || projectile.y > this.game.canvas.height) {
@@ -103,6 +140,16 @@ class ProjectileManager {
                     // Remove the projectile
                     delete updatedProjectiles[id];
                     projectilesChanged = true;
+                    
+                    // Create hit effect
+                    this.game.createHitEffect(presence.x, presence.y);
+                    
+                    // Send hit event for sound
+                    this.game.room.send({
+                        type: 'hit',
+                        x: presence.x,
+                        y: presence.y
+                    });
                 }
             });
         });
@@ -113,6 +160,53 @@ class ProjectileManager {
                 projectiles: updatedProjectiles
             });
         }
+    }
+    
+    fireProjectile(x, y, targetX, targetY) {
+        // Calculate direction (towards target)
+        const dx = targetX - x;
+        const dy = targetY - y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        if (length === 0) return;
+        
+        const normalizedDx = dx / length;
+        const normalizedDy = dy / length;
+        
+        // Create a unique ID for the projectile
+        const projectileId = `${this.game.room.clientId}-${Date.now()}`;
+        
+        // Create the projectile with timestamp
+        const newProjectile = {
+            x: x,
+            y: y,
+            vx: normalizedDx * this.PROJECTILE_SPEED,
+            vy: normalizedDy * this.PROJECTILE_SPEED,
+            ownerId: this.game.room.clientId,
+            createdAt: Date.now(),
+            lastUpdateTime: Date.now() // Add timestamp for interpolation
+        };
+        
+        // Add projectile to room state
+        const newProjectiles = {
+            ...(this.game.room.roomState.projectiles || {}),
+            [projectileId]: newProjectile
+        };
+        
+        this.game.room.updateRoomState({
+            projectiles: newProjectiles
+        });
+        
+        // Send shoot event for sound
+        this.game.room.send({
+            type: 'shoot',
+            x: x,
+            y: y,
+            vx: normalizedDx,
+            vy: normalizedDy
+        });
+        
+        return projectileId;
     }
     
     render(ctx) {

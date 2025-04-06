@@ -4,7 +4,7 @@ class Game {
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.players = {}; // Player characters
-        this.projectileManager = new ProjectileManager(this); // New ProjectileManager
+        this.shooter = new GameShooter(this); // New shooter class
         this.lastUpdateTime = 0;
         this.keys = {}; // For tracking key presses
         this.mouse = { x: 0, y: 0 }; // For tracking mouse position
@@ -74,7 +74,7 @@ class Game {
     handleRoomStateUpdate(roomState) {
         // Handle the projectiles and other room state changes
         if (roomState.projectiles) {
-            this.projectileManager.syncProjectiles(roomState.projectiles);
+            this.shooter.projectileManager.syncProjectiles(roomState.projectiles);
         }
     }
 
@@ -302,60 +302,8 @@ class Game {
         const myPresence = this.room.presence[this.room.clientId];
         if (!myPresence) return;
         
-        // Calculate direction (towards mouse)
-        const dx = this.mouse.x - myPresence.x;
-        const dy = this.mouse.y - myPresence.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        
-        if (length === 0) return;
-        
-        const normalizedDx = dx / length;
-        const normalizedDy = dy / length;
-        
-        // Create a unique ID for the projectile
-        const projectileId = `${this.room.clientId}-${Date.now()}`;
-        
-        // Create the projectile with timestamp
-        const newProjectile = {
-            x: myPresence.x,
-            y: myPresence.y,
-            vx: normalizedDx * this.projectileManager.PROJECTILE_SPEED,
-            vy: normalizedDy * this.projectileManager.PROJECTILE_SPEED,
-            ownerId: this.room.clientId,
-            createdAt: Date.now(),
-            lastUpdateTime: Date.now() // Add timestamp for interpolation
-        };
-        
-        // Add projectile to room state
-        const newProjectiles = {
-            ...(this.room.roomState.projectiles || {}),
-            [projectileId]: newProjectile
-        };
-        
-        this.room.updateRoomState({
-            projectiles: newProjectiles
-        });
-        
-        // Send shoot event for sound
-        this.room.send({
-            type: 'shoot',
-            x: myPresence.x,
-            y: myPresence.y,
-            vx: normalizedDx,
-            vy: normalizedDy
-        });
-        
-        // Auto-remove projectile after 2 seconds
-        setTimeout(() => {
-            if (this.room.roomState.projectiles && this.room.roomState.projectiles[projectileId]) {
-                const updatedProjectiles = { ...this.room.roomState.projectiles };
-                delete updatedProjectiles[projectileId];
-                
-                this.room.updateRoomState({
-                    projectiles: updatedProjectiles
-                });
-            }
-        }, 2000);
+        // Use the new shooter class
+        this.shooter.shoot(myPresence.x, myPresence.y, this.mouse.x, this.mouse.y);
     }
 
     createDashEffect(x, y) {
@@ -488,8 +436,8 @@ class Game {
             this.ctx.stroke();
         }
         
-        // Draw projectiles - replaced with ProjectileManager rendering
-        this.projectileManager.render(this.ctx);
+        // Draw projectiles using the shooter class
+        this.shooter.render(this.ctx);
         
         // Draw players
         Object.entries(this.room.presence).forEach(([clientId, presence]) => {
@@ -617,7 +565,7 @@ class Game {
         
         // Update game state
         this.updatePlayerPositions(deltaTime);
-        this.projectileManager.update(deltaTime);
+        this.shooter.update(deltaTime);
         
         // Render the game
         this.render();
