@@ -2,79 +2,34 @@ class Weapon {
     constructor(game) {
         this.game = game;
         this.lastFireTime = 0;
-        this.fireRate = 50; // Changed from 100ms to 50ms for much faster rapid fire
-        this.bulletSpeed = 600; 
-        this.damage = 5;
-        this.maxBulletsPerSecond = 15; // Threshold for bullet rate limiting
-        this.recentBulletCounts = {}; // Track bullets fired by each player
+        this.fireRate = 100; // Changed from 300ms to 100ms for rapid fire
+        this.bulletSpeed = 600; // Increased from 400 to 600 for faster bullets
+        this.damage = 5; // Reduced damage per bullet since firing rate is higher
+        
+        // Add bullet validator
+        this.bulletValidator = new BulletValidator();
     }
 
     canFire() {
         const now = Date.now();
-        
-        // Basic fire rate check
-        if (now - this.lastFireTime < this.fireRate) {
-            return false;
-        }
-        
-        // Check bullet threshold
-        const clientId = this.game.room.clientId;
-        if (!this.recentBulletCounts[clientId]) {
-            this.recentBulletCounts[clientId] = [];
-        }
-        
-        // Remove bullets older than 1 second
-        const oneSecondAgo = now - 1000;
-        this.recentBulletCounts[clientId] = this.recentBulletCounts[clientId].filter(
-            time => time > oneSecondAgo
-        );
-        
-        // Check if we're over the threshold
-        if (this.recentBulletCounts[clientId].length >= this.maxBulletsPerSecond) {
-            return false;
-        }
-        
-        return true;
+        return now - this.lastFireTime >= this.fireRate;
     }
 
     fire(startX, startY, targetX, targetY) {
         if (!this.canFire()) return false;
         
-        // Update last fire time
-        const now = Date.now();
-        this.lastFireTime = now;
-        
-        // Add to recent bullets count
-        const clientId = this.game.room.clientId;
-        if (!this.recentBulletCounts[clientId]) {
-            this.recentBulletCounts[clientId] = [];
+        // Validate speed before even attempting to fire
+        if (!this.bulletValidator.isValidBullet(this.bulletSpeed, this.damage)) {
+            console.warn("Invalid weapon configuration - skipping fire");
+            return false;
         }
-        this.recentBulletCounts[clientId].push(now);
+        
+        // Update last fire time
+        this.lastFireTime = Date.now();
         
         // Delegate shooting to projectile system
-        this.game.projectileSystem.shoot(startX, startY, targetX, targetY);
+        this.game.projectileSystem.shoot(startX, startY, targetX, targetY, this.bulletSpeed, this.damage);
         
         return true;
-    }
-    
-    // Track bullets from other players to enforce rate limiting
-    trackBullet(clientId) {
-        const now = Date.now();
-        
-        if (!this.recentBulletCounts[clientId]) {
-            this.recentBulletCounts[clientId] = [];
-        }
-        
-        // Remove bullets older than 1 second
-        const oneSecondAgo = now - 1000;
-        this.recentBulletCounts[clientId] = this.recentBulletCounts[clientId].filter(
-            time => time > oneSecondAgo
-        );
-        
-        // Add this bullet
-        this.recentBulletCounts[clientId].push(now);
-        
-        // Return whether this player is over threshold
-        return this.recentBulletCounts[clientId].length <= this.maxBulletsPerSecond;
     }
 }

@@ -5,6 +5,9 @@ class ProjectileSystem {
         this.PROJECTILE_SPEED = 600; // Increased from 400 to 600 to match weapon speed
         this.PROJECTILE_LIFETIME = 1500; // Reduced from 2000ms to 1500ms for faster gameplay
         this.processedProjectileIds = new Set(); // Track which projectiles we've processed
+        
+        // Add bullet validator instance
+        this.bulletValidator = new BulletValidator();
     }
 
     initialize() {
@@ -28,13 +31,10 @@ class ProjectileSystem {
                 if (!this.projectiles[id] && data) {
                     // Only process each projectile once
                     if (!this.processedProjectileIds.has(id)) {
-                        // Check if this player is exceeding bullet threshold
-                        if (data.ownerId !== this.game.room.clientId) {
-                            const isWithinThreshold = this.game.weapon.trackBullet(data.ownerId);
-                            if (!isWithinThreshold) {
-                                // Skip processing this bullet from spamming player
-                                return;
-                            }
+                        // Validate projectile data before processing
+                        if (!this.bulletValidator.validateProjectileData(data)) {
+                            console.warn("Dropping invalid projectile:", id);
+                            return;
                         }
                         
                         this.processedProjectileIds.add(id);
@@ -139,6 +139,12 @@ class ProjectileSystem {
         
         const normalizedDx = dx / length;
         const normalizedDy = dy / length;
+        
+        // Validate bullet speed and damage before creating projectile
+        if (!this.bulletValidator.isValidBullet(speed, damage)) {
+            console.warn("Attempted to create invalid projectile - dropping request");
+            return;
+        }
         
         // Create a unique ID for the projectile
         const projectileId = `${this.game.room.clientId}-${Date.now()}`;
